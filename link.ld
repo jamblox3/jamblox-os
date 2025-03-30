@@ -4,15 +4,15 @@ SECTIONS
 {
     . = 0x7E00;  /* Set the starting address for the kernel */
 
-    .text : {
+    .text ALIGN(4): {
         *(.text)  /* Include all .text sections */
     }
 
-    .data : {
+    .data ALIGN(4): {
         *(.data)  /* Include all .data sections */
     }
 
-    .bss : {
+    .bss ALIGN(4): {
         *(.bss)  /* Include all .bss sections */
     }
 

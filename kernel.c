@@ -6,6 +6,11 @@ void entry_point()
     _main();
 }
 
+void __chkstk_ms() {
+    // Empty implementation to satisfy the linker
+}
+
+
 //define constants
 #define primary 0x1f0
 #define secondary 0x170
@@ -126,6 +131,10 @@ void read_ata_sectors(int sector_number, int sector_count, char drive_number, ch
     }
 }
 
+short swap_bytes(short word) {
+    return (word >> 8) | (word << 8);
+}
+
 void read_atapi_sectors(int sector_number, int sector_count, char drive_number, char channel, short* buffer){
     int base;
     if(channel){
@@ -137,6 +146,7 @@ void read_atapi_sectors(int sector_number, int sector_count, char drive_number, 
     wait_for_ready(base);
     outb(base + reg_drive,(0xE0 | ((drive_number << 4) & 0x0f)));
     outb(base + reg_cmd, 0xA0);
+    wait_for_ready(base);
 
     char packet[12] = {0};
     packet[0] = 0x28;  // Read (10) command
@@ -149,14 +159,17 @@ void read_atapi_sectors(int sector_number, int sector_count, char drive_number, 
 
     // Write the packet
     for (int i = 0; i < 6; i++) {
-        outw(base + reg_data, ((short*)packet)[i]);
+        short word = (packet[i * 2 + 1] << 8) | packet[i * 2];
+        outw(base + 0, word);
     }
 
     wait_for_ready(base);
-
+    wait_for_ready(base);
+    wait_for_ready(base);
+    wait_for_ready(base); //for some reason waiting once fails
     // Read data
-    for (int i = 0; i < 256 * sector_count; i++) {
-        buffer[i] = inw(base);
+    for (int i = 0; i < 257 * sector_count; i++) {
+        buffer[i] = swap_bytes(inw(base));
     }
 }
 
@@ -170,11 +183,11 @@ void convert_short_to_int(short* short_buffer, int* int_buffer, int short_len) {
 
 
 volatile void _main() {
-    short buffer[256];
-    int int_buffer[128];
-    read_atapi_sectors(64,1,0,0,buffer);
+    short buffer[1024];
+    int int_buffer[512];
+    read_atapi_sectors(16,2,0,0,buffer); 
     convert_short_to_int(buffer, int_buffer, 256);
-    for (int i=0; i<128; i++){
+    for (int i=0; i<512; i++){
         print_hex(int_buffer[i]);
     }
 }
